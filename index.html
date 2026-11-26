@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Point Cloud Studio</title>
+<link rel="stylesheet" href="style.css">
+<script type="module" src="studio.js"></script>
+</head>
+<body>
+<header>
+  <h1>Point Cloud <em>Studio</em></h1>
+  <label class="button">Open image<input id="image" type="file" accept="image/*"></label>
+</header>
+<main>
+  <section class="stage" aria-label="Point cloud preview">
+    <div class="dust-stage"><canvas id="view" tabindex="0" aria-label="3D preview. Drag or use the arrow keys to orbit."></canvas><canvas id="dust" aria-hidden="true"></canvas></div>
+    <div class="caption"><span id="source">BUILT-IN SAMPLE</span><span id="count"></span></div>
+    <div class="line-bar" role="group" aria-label="Line controls">
+      <label><input id="line" type="checkbox" checked> Line</label>
+      <label>Height <input id="line-height" type="range" min="0" max="100" value="50"></label>
+      <label>Angle <input id="line-angle" type="range" min="-90" max="90" value="0"></label>
+      <label>Fall speed <input id="fall-speed" type="range" min="0.25" max="3" step="0.05" value="1"><output id="fall-value" for="fall-speed">1×</output></label>
+      <label>Wind direction <input id="wind-direction" type="range" min="-75" max="75" value="0"><output id="wind-value" for="wind-direction">↓</output></label>
+    </div>
+  </section>
+  <aside>
+    <h2>Point cloud</h2>
+    <label>Depth <input id="depth" type="range" min="0" max="100" value="55"></label>
+    <label>Scatter <input id="scatter" type="range" min="0" max="100" value="0"></label>
+    <label>Grain size <input id="size" type="range" min=".5" max="3" step=".1" value="1"></label>
+    <div class="actions">
+      <button id="estimate" type="button">Estimate depth</button>
+      <label class="button">Import depth map<input id="map" type="file" accept="image/*"></label>
+      <button id="spin" type="button" aria-pressed="false">Auto orbit</button>
+      <button id="export" type="button" disabled>Export PNG</button>
+      <button id="reset" type="button">Reset view</button>
+    </div>
+    <p id="status" role="status">Depth source: image brightness</p>
+    <p class="hint" id="line-hint">Hover to repel points. Drag to orbit. Scroll to zoom.</p>
+  </aside>
+</main>
+</body>
+</html>
