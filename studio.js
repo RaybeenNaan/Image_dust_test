@@ -13,7 +13,7 @@ const windDirection = get('wind-direction');
 fallSpeed.oninput = () => { get('fall-value').textContent = fallSpeed.value + '×'; };
 windDirection.oninput = () => {
   const degrees = Number(windDirection.value);
-  get('wind-value').textContent = degrees === 0 ? '↓' : Math.abs(degrees) + '° ' + (degrees < 0 ? '↙' : '↘');
+  get('wind-value').textContent = (degrees > 0 ? '+' : '') + degrees + '°';
 };
 
 function syncLine() {
@@ -108,34 +108,43 @@ estimate.onclick = () => {
   }
 };
 
-function draw() {
+function draw(time) {
   const depth = Number(get('depth').value) / 55;
   renderer.draw({
     ...camera,
     hover,
     emitter,
+    quickFade: get('quick-fade').checked,
     fallSpeed: Number(fallSpeed.value),
     windAngle: Number(windDirection.value) * Math.PI / 180,
-    time: performance.now() / 1000,
     depth,
     scatter: Number(get('scatter').value) / 45,
     size: Number(get('size').value),
-  });
+  }, time / 1000);
+  exportButton.disabled = false;
 }
 
 function redraw() {
-  if (!renderer || frame) return;
+  if (!renderer || frame !== undefined || document.hidden) return;
   frame = requestAnimationFrame(time => {
     frame = undefined;
     if (!renderer) return;
     if (spinning && lastFrame !== undefined) {
-      camera.yaw += Math.min(50, time - lastFrame) * .0006;
+      camera.yaw += (time - lastFrame) * .0006;
     }
     lastFrame = spinning ? time : undefined;
-    draw();
+    draw(time);
     redraw();
   });
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (frame !== undefined) cancelAnimationFrame(frame);
+  frame = undefined;
+  lastFrame = undefined;
+  renderer?.suspend();
+  if (!document.hidden) redraw();
+});
 
 get('spin').onclick = () => {
   spinning = !spinning;
@@ -147,7 +156,7 @@ get('spin').onclick = () => {
 
 exportButton.onclick = () => {
   if (!renderer) return;
-  draw();
+  renderer.present();
   const image = document.createElement('canvas');
   image.width = canvas.width;
   image.height = canvas.height;
@@ -168,9 +177,15 @@ exportButton.onclick = () => {
   }, 'image/png');
 };
 
-function updateCloud(points) {
-  renderer.setPoints(points);
-  get('count').textContent = (points.length / 6).toLocaleString() + ' POINTS';
+let currentCloud;
+function updateCloud(points, image = source) {
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  const extent = Math.max(width, height);
+  const count = renderer.setPoints({ points, imageWidth: 2 * width / extent, imageHeight: 2 * height / extent });
+  currentCloud = points;
+  exportButton.disabled = true;
+  get('count').textContent = count.toLocaleString() + ' STRANDS';
   redraw();
 }
 
@@ -198,7 +213,7 @@ for (const id of ['image', 'map']) {
       const image = await decode(file);
       if (current !== request) return;
       if (id === 'image') {
-        updateCloud(sampleImage(image));
+        updateCloud(sampleImage(image), image);
         source = image;
         get('source').textContent = file.name;
         status.textContent = 'Depth source: image brightness';
@@ -267,17 +282,31 @@ canvas.addEventListener('keydown', event => {
 });
 canvas.addEventListener('webglcontextlost', event => {
   event.preventDefault();
-  status.textContent = 'The graphics context was lost. Reload to restore the preview.';
+  cancelDepth();
+  ++request;
+  estimate.disabled = true;
+  lastFrame = undefined;
+  status.textContent = 'Graphics paused. Waiting for the browser to restore the preview.';
   renderer = undefined;
   exportButton.disabled = true;
 });
 
-
-try {
-  renderer = createRenderer(canvas);
-  updateCloud(sampleImage(source));
-  syncLine();
-  exportButton.disabled = false;
-} catch (error) {
-  status.textContent = error.message;
+function startPreview() {
+  try {
+    renderer = createRenderer(canvas);
+    updateCloud(currentCloud ?? sampleImage(source));
+    syncLine();
+    estimate.disabled = false;
+  } catch (error) {
+    console.error(error);
+    status.textContent = error.message;
+    renderer = undefined;
+    exportButton.disabled = estimate.disabled = true;
+  }
 }
+
+canvas.addEventListener('webglcontextrestored', () => {
+  status.textContent = 'Graphics restored.';
+  startPreview();
+});
+startPreview();

@@ -1,13 +1,18 @@
 # Point Cloud Studio
 
-Run `python3 -m http.server 8766 --bind 127.0.0.1` from this folder and open http://127.0.0.1:8766/ in a browser with WebGL 2.
+Run `python3 -m http.server 8766 --bind 127.0.0.1` from this directory and open [the studio](http://127.0.0.1:8766/) in a WebGL 2 browser.
 
-Open an image to see it as a colored point cloud. Drag or use the arrow keys to orbit, scroll to zoom, and use Depth, Scatter, and Point Size to control the cloud. The default preview uses brightness as a rough depth signal. Import a grayscale depth map aligned to the source image for actual relative depth from another tool. White maps to near and black to far. Source files are processed locally.
+Open an image to turn it into fine colored strands. Hover to part them, drag or use the arrow keys to orbit, and scroll to zoom. Depth and Scatter shape the cloud. Strand width sets the ribbon width in CSS pixels. The counter reports the number of sampled strands.
 
-- `cloud.js` samples an image and optional depth map into interleaved positions and colors.
-- `renderer.js` draws the points with custom WebGL 2 shaders.
-- `studio.js` manages file input and preview controls.
+The line stays on the image plane as you orbit. Height and Angle place it. Above the line the fall builds gradually. Below-line speed and Wind offset control the flow on its lower side. Positive wind turns toward the right end of a horizontal line. Quick fade starts when a strand passes 30% of the image height beyond the line and fades it over 100 milliseconds. Switch it off for a longer fall. In both modes, strands fade across the first 10 CSS pixels beneath the projected image edge and are invisible beyond that distance. Switching Line off returns the image to its resting shape.
 
-Choose **Estimate depth** to run Depth Anything V2 Small in a browser worker. The first run needs an internet connection to download the runtime and model. Inference uses the image locally. If estimation fails, the current preview stays usable.
+Brightness supplies the initial depth. Import an aligned grayscale depth map for more control. White is nearer. **Estimate depth** downloads Depth Anything V2 Small on its first run and performs inference locally in a worker. **Export PNG** captures the current frame and line guide.
 
-**Auto orbit** rotates the cloud until you choose **Stop orbit**. **Export PNG** saves the current canvas view at its rendered resolution.
+## Implementation
+
+- `cloud.js` samples the source colors and depth. `simulation.js` advances the displayed particles at 120 Hz, including hover, wind and recycling.
+- `history.js` tracks timestamped trail samples and strand lifetimes. It sorts visible strands back to front in camera space.
+- `trails.js` stores positions in a GPU texture ring and renders tapered triangle ribbons. `camera.js` provides the transform shared by hover, ribbons and the guide.
+- `renderer.js` coordinates simulation and presentation. `studio.js` connects the preview to image inputs and controls.
+
+Run `node --test tests/particles.test.mjs` with Node 24 to check timing, flow, hover, camera projection, history and transparency order.
